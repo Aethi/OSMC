@@ -1,0 +1,8 @@
+name: OSMC
+description: OSMC library of things
+version: 1.0
+main: com.osmc.core.MinecraftCore
+commands:
+  hat:
+    description: Put a block on your head.
+    usage: /hat
