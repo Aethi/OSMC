@@ -6,13 +6,14 @@ plugins {
 application.mainClass = "com.osmc.core.MinecraftCore"
 
 group = "org.osmc"
-version = "1.0"
+version = "1.1"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    implementation("org.json:json:20231013")
     implementation(files("lib/bukkit.jar"))
 }
 

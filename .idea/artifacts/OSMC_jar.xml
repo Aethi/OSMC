@@ -3,6 +3,7 @@
     <output-path>$PROJECT_DIR$/out/artifacts/OSMC_jar</output-path>
     <root id="archive" name="OSMC.jar">
       <element id="module-output" name="OSMC.main" />
+      <element id="extracted-dir" path="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.json/json/20231013/e22e0c040fe16f04ffdb85d851d77b07fc05ea52/json-20231013.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/bukkit.jar" path-in-jar="/" />
     </root>
   </artifact>

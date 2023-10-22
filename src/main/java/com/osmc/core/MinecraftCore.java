@@ -5,14 +5,22 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.material.MaterialData;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,12 +31,54 @@ public class MinecraftCore extends JavaPlugin implements Listener {
     }
 
     private Logger logger;
+    private String updateURL;
 
     @Override
     public void onEnable( ) {
         logger = this.getServer( ).getLogger( );
 
-        //...
+        log( Level.INFO, "Checking for new version..." );
+
+        try {
+            URL url = new URL("https://api.github.com/repos/Aethi/OSMC/releases");
+
+            HttpURLConnection conn = ( HttpURLConnection ) url.openConnection( );
+            conn.setRequestMethod( "GET" );
+            conn.addRequestProperty( "Accept", "application/vnd.github+json" );
+            conn.addRequestProperty( "X-GitHub-Api-Version", "2022-11-28" );
+            conn.connect( );
+
+            log( Level.INFO, "Connection: " + conn.getResponseMessage() );
+            if ( conn.getResponseCode( ) == 200 ) {
+                /*
+                 * Yeah, this is fucking horrible
+                 */
+
+                BufferedReader buffer = new BufferedReader( new InputStreamReader( url.openStream( ), StandardCharsets.UTF_8 ) );
+                String readAPIResponse = " ";
+                StringBuilder jsonString = new StringBuilder( );
+                while ( ( readAPIResponse = buffer.readLine( ) ) != null ) {
+                    jsonString.append( readAPIResponse );
+                }
+
+                JSONArray jsonArray = new JSONArray( jsonString.toString( ) );
+                JSONObject json = jsonArray.getJSONObject( 0 );
+
+                String remoteVersion  = json.get( "tag_name" ).toString( ).substring( 8 );
+                String currentVersion = this.getDescription( ).getVersion( );
+
+                if ( currentVersion.equals( remoteVersion ) ) {
+                    log( Level.INFO, "Plugin is up-to-date." );
+                } else {
+                    updateURL = json.getJSONArray( "assets" ).getJSONObject( 0 ).get( "browser_download_url" ).toString( );
+                    log( Level.WARNING, "Plugin is outdated, run /osmc update" );
+                }
+
+                conn.disconnect( );
+            }
+        } catch ( Exception e ) {
+            log( Level.SEVERE, e.getMessage( ) );
+        }
 
         log( Level.INFO, "Plugin has started." );
     }
@@ -42,6 +92,29 @@ public class MinecraftCore extends JavaPlugin implements Listener {
     public boolean onCommand( CommandSender sender, Command command, String label, String[] args ) {
         Player player = ( Player )sender;
 
+        if ( command.getLabel( ).equalsIgnoreCase( "osmc" ) ) {
+            if ( args.length > 0 && args[0].equals( "update" ) && player.isOp( ) ) {
+                sendMessage( Level.INFO, player, "Downloading update..." );
+
+                try ( BufferedInputStream in = new BufferedInputStream( new URL( updateURL ).openStream( ) );
+                      FileOutputStream fileOutputStream = new FileOutputStream( this.getFile( ).getAbsolutePath( ) ) ) {
+
+                    byte[] dataBuffer = new byte[1024];
+                    int bytesRead;
+                    while ( ( bytesRead = in.read( dataBuffer, 0, 1024 ) ) != -1 ) {
+                        fileOutputStream.write( dataBuffer, 0, bytesRead );
+                    }
+
+                    sendMessage( Level.INFO, player, "OSMC updated, please /reload the server." );
+                    return true;
+                } catch ( Exception e ) {
+                    sendMessage( Level.WARNING, player, e.getMessage( ) );
+                }
+            }
+
+            sendMessage( Level.INFO, player, "OSMC Version: " + this.getDescription( ).getVersion( ) );
+            return true;
+        }
         if ( command.getLabel( ).equalsIgnoreCase( "hat" ) ) {
             PlayerInventory inventory = player.getInventory( );
 

@@ -1,8 +1,11 @@
 name: OSMC
 description: OSMC library of things
-version: 1.0
+version: 1.1
 main: com.osmc.core.MinecraftCore
 commands:
+  osmc:
+    description: OSMC utlities
+    usage: /osmc
   hat:
     description: Put a block on your head.
     usage: /hat
