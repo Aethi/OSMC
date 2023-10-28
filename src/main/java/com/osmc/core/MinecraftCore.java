@@ -1,14 +1,14 @@
 package com.osmc.core;
 
-import org.bukkit.Bukkit;
+import com.osmc.core.fun.Hat;
+import com.osmc.core.fun.Particles;
+
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.Listener;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import org.json.JSONArray;
@@ -21,17 +21,31 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.UUID;
 
 public class MinecraftCore extends JavaPlugin implements Listener {
+    /*
+     * Core variables
+     */
     public static void main( String[] arguments ) {
 
     }
 
     private Logger logger;
     private String updateURL;
+
+    /*
+     * [..].fun.* shared variables
+     */
+    public Set<UUID> particleUsers = new HashSet<>();
+
+    /*
+     * Plugin Core
+     */
 
     private boolean isOutdated( ) {
         try {
@@ -85,6 +99,13 @@ public class MinecraftCore extends JavaPlugin implements Listener {
             log( Level.INFO, "Plugin is up-to-date." );
         }
 
+        // fun.Particles
+        getServer( ).getPluginManager( ).registerEvent( Event.Type.PLAYER_MOVE, new Particles( this ), Event.Priority.Highest, this );
+        getServer( ).getPluginCommand( "smoke" ).setExecutor( new Particles( this ) );
+
+        // fun.hat
+        getServer( ).getPluginCommand( "hat" ).setExecutor( new Hat( this ) );
+
         log( Level.INFO, "Plugin has started." );
     }
 
@@ -99,100 +120,47 @@ public class MinecraftCore extends JavaPlugin implements Listener {
             return false;
 
         Player player = ( Player )sender;
-        switch ( command.getLabel( ).toLowerCase( ) ) {
-            case "osmc":
-                if ( args.length > 0 && args[0].equals( "update" ) && player.isOp( ) ) {
-                    if ( this.updateURL.isEmpty( ) ) {
-                        sendMessage( Level.INFO, player, "Checking for new version..." );
-                        if ( isOutdated( ) ) {
-                            sendMessage( Level.WARNING, player, "New version found!" );
-                        } else {
-                            sendMessage( Level.INFO, player, "Plugin is up-to-date." );
-
-                            this.updateURL = "";
-                            return true;
-                        }
-                    }
-
-                    sendMessage( Level.INFO, player, "Downloading update..." );
-
-                    try ( BufferedInputStream in = new BufferedInputStream( new URL( updateURL ).openStream( ) );
-                          FileOutputStream fileOutputStream = new FileOutputStream( this.getFile( ).getAbsolutePath( ) ) ) {
-
-                        byte[] dataBuffer = new byte[1024];
-                        int bytesRead;
-                        while ( ( bytesRead = in.read( dataBuffer, 0, 1024 ) ) != -1 ) {
-                            fileOutputStream.write( dataBuffer, 0, bytesRead );
-                        }
-
-                        sendMessage( Level.INFO, player, "OSMC updated, please /reload the server." );
+        if ( command.getLabel( ).equalsIgnoreCase( "osmc" ) ) {
+            if ( args.length > 0 && args[0].equals( "update" ) && player.isOp( ) ) {
+                if ( this.updateURL.isEmpty( ) ) {
+                    sendMessage( Level.INFO, player, "Checking for new version..." );
+                    if ( isOutdated( ) ) {
+                        sendMessage( Level.WARNING, player, "New version found!" );
+                    } else {
+                        sendMessage( Level.INFO, player, "Plugin is up-to-date." );
 
                         this.updateURL = "";
                         return true;
-                    } catch ( Exception e ) {
-                        sendMessage( Level.WARNING, player, e.getMessage( ) );
                     }
                 }
 
-                sendMessage( Level.INFO, player, "OSMC Version: " + this.getDescription( ).getVersion( ) );
+                sendMessage( Level.INFO, player, "Downloading update..." );
 
-                this.updateURL = "";
-                return true;
-            case "hat":
-                PlayerInventory inventory = player.getInventory( );
+                try ( BufferedInputStream in = new BufferedInputStream( new URL( updateURL ).openStream( ) );
+                      FileOutputStream fileOutputStream = new FileOutputStream( this.getFile( ).getAbsolutePath( ) ) ) {
 
-                if ( args.length > 0 && args[0].equals( "portal" ) && player.isOp( ) ) {
-                    boolean setPlayer = false;
-                    if ( args.length > 1 && !args[1].isEmpty( ) ) {
-                        player      = Bukkit.getServer( ).getPlayer( args[1] );
-                        inventory   = player.getInventory( );
-                        setPlayer   = true;
+                    byte[] dataBuffer = new byte[1024];
+                    int bytesRead;
+                    while ( ( bytesRead = in.read( dataBuffer, 0, 1024 ) ) != -1 ) {
+                        fileOutputStream.write( dataBuffer, 0, bytesRead );
                     }
 
-                    // Save & drop current helmet if it exists
-                    ItemStack helmet = inventory.getHelmet( );
-                    if ( helmet.getType( ) != Material.AIR ) {
-                        if ( inventory.contains( new ItemStack( Material.AIR ) ) ) {
-                            inventory.addItem( helmet );
-                        } else {
-                            player.getWorld( ).dropItem( player.getLocation( ), helmet );
-                        }
-                    }
+                    sendMessage( Level.INFO, player, "OSMC updated, please /reload the server." );
 
-                    ItemStack portal = new ItemStack( Material.PORTAL );
-                    inventory.setHelmet( portal );
-
-                    if ( !setPlayer )
-                        sendMessage( Level.INFO, player, "Portal helmet set." );
-                    else {
-                        sendMessage( Level.INFO, ( Player )sender, "Portal helmet set for " + player.getName( ) );
-                        sendMessage( Level.INFO, player, ( ( Player )sender ).getName( ) + " has blessed you." );
-                    }
-
+                    this.updateURL = "";
                     return true;
-                } else if ( Arrays.toString( args ).contains( "portal" ) && !player.isOp( ) ) {
-                    sendMessage( Level.WARNING, player, "Must have OP permissions." );
-                    return true;
+                } catch ( Exception e ) {
+                    sendMessage( Level.WARNING, player, e.getMessage( ) );
                 }
+            }
 
-                if (player.getItemInHand().getType() != Material.AIR) {
-                    ItemStack hand = player.getItemInHand( );
-                    ItemStack helmet = inventory.getHelmet( );
+            sendMessage( Level.INFO, player, "OSMC Version: " + this.getDescription( ).getVersion( ) );
 
-                    inventory.removeItem( hand );
-                    inventory.setHelmet( hand );
-                    if ( helmet.getType( ) != Material.AIR )
-                        inventory.setItemInHand( helmet );
-
-                    sendMessage( Level.INFO, player, "New helmet has been set." );
-                } else {
-                    sendMessage( Level.WARNING, player, "You need to have an item in your hand!" );
-                }
-
-                return true;
-            default:
-                return false;
+            this.updateURL = "";
+            return true;
         }
+
+        return false;
     }
 
     public void sendMessage( Level level, Player player, String message ) {

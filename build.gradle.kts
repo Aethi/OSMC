@@ -6,7 +6,7 @@ plugins {
 application.mainClass = "com.osmc.core.MinecraftCore"
 
 group = "org.osmc"
-version = "1.1"
+version = "1.2"
 
 repositories {
     mavenCentral()
